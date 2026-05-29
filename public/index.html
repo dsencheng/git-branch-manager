@@ -6,7 +6,7 @@
   <title>Git Branch Manager</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root {
+    :root, [data-theme="dark"] {
       --bg: #0f0f0f;
       --surface: #1a1a1a;
       --surface-hover: #242424;
@@ -17,16 +17,123 @@
       --accent-hover: #8ab4ff;
       --danger: #ff6b6b;
       --success: #69db7c;
+      --purple: #a78bfa;
+      --branch: #f0b060;
+      --overlay: rgba(0,0,0,0.6);
       --radius: 10px;
+      --card-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    [data-theme="light"] {
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --surface-hover: #f0f0f0;
+      --border: #e0e0e0;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --accent: #4a7fe5;
+      --accent-hover: #3a6fd5;
+      --danger: #e53e3e;
+      --success: #38a169;
+      --purple: #7c5cbf;
+      --branch: #b07820;
+      --overlay: rgba(0,0,0,0.3);
+      --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg);
       color: var(--text);
-      padding: 24px;
       min-height: 100vh;
+      margin: 0;
     }
-    h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 24px; }
+    .app-layout {
+      display: flex;
+      height: 100vh;
+    }
+    .msg-panel {
+      width: 280px;
+      min-width: 280px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      transition: min-width 0.2s, width 0.2s, opacity 0.2s;
+      overflow: hidden;
+    }
+    .msg-panel.collapsed {
+      width: 0;
+      min-width: 0;
+      border-right: none;
+    }
+    .msg-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .msg-panel-header span {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+    .msg-toggle-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    .msg-toggle-btn:hover { color: var(--text); }
+    .msg-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .msg-item {
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      border-left: 3px solid var(--border);
+    }
+    .msg-item.success { border-left-color: var(--success); }
+    .msg-item.error { border-left-color: var(--danger); }
+    .msg-item .msg-time {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+    .msg-expand-btn {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      z-index: 50;
+      transition: color 0.15s;
+      display: none;
+    }
+    .msg-expand-btn.visible { display: block; }
+    .msg-expand-btn:hover { color: var(--text); }
+    .main-content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
     .section-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 12px; }
     .batch-panel {
       background: var(--surface);
@@ -60,32 +167,31 @@
       cursor: pointer;
       transition: background 0.15s;
     }
-    .batch-panel button:hover { background: var(--accent-hover); }
-    .batch-panel .repo-checks { display: flex; gap: 8px; flex-wrap: wrap; }
-    .batch-panel label {
-      font-size: 0.8rem;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      color: var(--text-muted);
-      cursor: pointer;
-    }
-    .batch-panel label:hover { color: var(--text); }
-    .select-all { font-size: 0.75rem; color: var(--accent); cursor: pointer; text-decoration: underline; }
-    .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+    .batch-panel button:hover { opacity: 0.85; }
+    .batch-panel button.btn-pull { background: var(--success); }
+    .select-all { font-size: 0.75rem; color: var(--accent); cursor: pointer; text-decoration: underline; margin-left: 8px; font-weight: 400; }
+    .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-items: start; }
     .repo-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 16px;
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
+      transition: border-color 0.2s, background 0.2s, transform 0.2s, box-shadow 0.2s;
     }
-    .repo-card:hover { background: var(--surface-hover); border-color: var(--accent); }
-    .repo-card.expanded { border-color: var(--accent); }
-    .repo-card .header { display: flex; justify-content: space-between; align-items: center; }
-    .repo-card .name { font-weight: 600; font-size: 0.95rem; }
-    .repo-card .branch { font-size: 0.8rem; color: var(--accent); font-family: monospace; }
+    .repo-card.checked {
+      background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+      border-color: var(--accent);
+    }
+    .repo-card .card-check { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; }
+    .repo-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: var(--card-shadow);
+    }
+    .repo-card .loading { font-size: 0.8rem; color: var(--text-muted); padding: 8px 0; }
+    .repo-card .header { display: flex; align-items: center; gap: 8px; }
+    .repo-card .name { font-size: 0.8rem; color: var(--text-muted); margin-left: auto; }
+    .repo-card .branch { font-size: 0.95rem; color: var(--branch); font-family: monospace; font-weight: 700; }
     .repo-card .dirty-badge {
       font-size: 0.7rem;
       background: var(--danger);
@@ -94,6 +200,11 @@
       border-radius: 4px;
       font-weight: 600;
       margin-left: 8px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
     }
     .branch-list {
       margin-top: 12px;
@@ -120,14 +231,32 @@
       border-radius: 4px;
       cursor: pointer;
       transition: background 0.1s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
     .branch-item:hover { background: var(--surface-hover); }
     .branch-item.current { color: var(--success); font-weight: 600; }
+    .branch-item .copy-btn {
+      opacity: 0;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      transition: opacity 0.15s, color 0.15s;
+      font-size: 0.75rem;
+      line-height: 1;
+      margin-left: auto;
+    }
+    .branch-item:hover .copy-btn { opacity: 1; }
+    .branch-item .copy-btn:hover { color: var(--accent); }
     .modal-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.6);
+      background: var(--overlay);
       justify-content: center;
       align-items: center;
       z-index: 100;
@@ -141,6 +270,7 @@
       max-width: 400px;
       width: 90%;
     }
+    .modal.wide { max-width: 560px; }
     .modal h3 { margin-bottom: 12px; font-size: 1rem; }
     .modal p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; }
     .modal .actions { display: flex; gap: 8px; justify-content: flex-end; }
@@ -153,100 +283,574 @@
       font-weight: 500;
     }
     .modal .btn-stash { background: var(--accent); color: #000; }
+    .modal .btn-stash-pop { background: var(--success); color: #000; }
     .modal .btn-cancel { background: var(--border); color: var(--text); }
+    .modal .btn-primary { background: var(--accent); color: #000; }
+    .modal .btn-danger { background: var(--danger, #e53e3e); color: #fff; }
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      justify-content: center;
+      align-items: center;
+      z-index: 300;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .loading-overlay.active { display: flex; }
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .loading-text {
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
     .toast {
       position: fixed;
       bottom: 24px;
-      right: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 12px 20px;
       font-size: 0.85rem;
       opacity: 0;
-      transform: translateY(10px);
+      pointer-events: none;
       transition: all 0.3s;
       z-index: 200;
     }
-    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
     .toast.success { border-color: var(--success); }
     .toast.error { border-color: var(--danger); }
+    .global-loading {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .global-loading.show { display: flex; }
+    .global-loading .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .global-loading .loading-text { color: #fff; font-size: 0.9rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .header-row h1 { margin-bottom: 0; }
+    .poll-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .poll-control input[type="number"] {
+      width: 50px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 4px 6px;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+    .poll-control input[type="number"]:focus { outline: none; border-color: var(--accent); }
+    .poll-toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .poll-toggle.active { background: var(--accent); }
+    .poll-toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: var(--text);
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .poll-toggle.active::after { transform: translateX(16px); }
+    .settings-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .settings-btn:hover { color: var(--text); border-color: var(--text-muted); }
+    .config-section { margin-bottom: 16px; }
+    .config-section h4 { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
+    .config-list { list-style: none; margin-bottom: 8px; }
+    .config-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      font-size: 0.8rem;
+      font-family: monospace;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      background: var(--bg);
+    }
+    .config-list li button {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .config-list li button:hover { background: rgba(255,107,107,0.15); }
+    .config-add {
+      display: flex;
+      gap: 8px;
+    }
+    .config-add input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+    .config-add input:focus { outline: none; border-color: var(--accent); }
+    .config-add button {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .config-add button:hover { opacity: 0.85; }
+    .config-add button.btn-browse {
+      background: var(--border);
+      color: var(--text);
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    .branch-item.current::before { content: '● '; color: var(--success); }
+    .theme-switcher {
+      display: flex;
+      gap: 2px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+    }
+    .theme-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      transition: background 0.15s, color 0.15s;
+      line-height: 1;
+    }
+    .theme-btn:hover { color: var(--text); }
+    .theme-btn.active {
+      background: var(--accent);
+      color: #000;
+      font-weight: 600;
+    }
+    .sync-panel {
+      width: 360px;
+      min-width: 360px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      transition: min-width 0.2s, width 0.2s;
+      overflow: hidden;
+    }
+    .sync-panel.collapsed {
+      width: 0;
+      min-width: 0;
+      border-left: none;
+    }
+    .sync-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sync-panel-header span {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .sync-panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .sync-field label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 4px;
+    }
+    .sync-field input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 0.85rem;
+    }
+    .sync-field input:focus { outline: none; border-color: var(--accent); }
+    .sync-arrow-row {
+      text-align: center;
+      color: var(--accent);
+      font-size: 1.1rem;
+      margin: -4px 0;
+    }
+    .sync-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 0.78rem;
+      background: var(--bg);
+    }
+    .sync-item .sync-arrow { color: var(--accent); margin: 0 4px; }
+    .sync-item .sync-skip { color: var(--text-muted); font-style: italic; font-size: 0.72rem; }
+    .sync-item .sync-dirty { font-size: 0.68rem; color: var(--branch); }
+    .sync-confirm-btn {
+      background: #e0a030;
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: opacity 0.15s;
+    }
+    .sync-confirm-btn:hover { opacity: 0.85; }
+    .sync-confirm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   </style>
 </head>
 <body>
-  <h1>Git Branch Manager</h1>
-  <div class="section-title">批量切换</div>
-  <div class="batch-panel">
-    <input type="text" id="batchBranch" placeholder="输入分支名...">
-    <span class="select-all" id="selectAll">全选</span>
-    <div class="repo-checks" id="repoChecks"></div>
-    <button id="batchBtn">批量切换</button>
+  <button class="msg-expand-btn visible" id="msgExpandBtn" title="显示操作记录">&#9776; 操作记录</button>
+  <div class="app-layout">
+    <div class="msg-panel collapsed" id="msgPanel">
+      <div class="msg-panel-header">
+        <span>操作记录</span>
+        <button class="msg-toggle-btn" id="msgCollapseBtn" title="隐藏面板">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+        </button>
+      </div>
+      <div class="msg-list" id="msgList"></div>
+    </div>
+    <div class="main-content">
+      <div class="header-row">
+        <h1><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>Git Branch Manager</h1>
+        <div class="poll-control">
+          <div class="theme-switcher">
+            <button class="theme-btn" data-theme="light" title="亮色">&#9728;</button>
+            <button class="theme-btn" data-theme="dark" title="暗色">&#9790;</button>
+            <button class="theme-btn" data-theme="system" title="跟随系统">自动</button>
+          </div>
+          <button class="settings-btn" id="settingsBtn">&#9881; 设置</button>
+          <span>自动刷新</span>
+          <div class="poll-toggle active" id="pollToggle"></div>
+          <input type="number" id="pollInterval" value="5" min="1" max="60">
+          <span>秒</span>
+        </div>
+      </div>
+      <div class="section-title">批量操作</div>
+      <div class="batch-panel">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;width:100%">
+        <input type="text" id="batchBranch" placeholder="输入分支名...">
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;width:100%">
+        <button id="batchPullBtn" class="btn-pull">&#8595; 批量拉取</button>
+        <button id="batchPushBtn" style="background:var(--purple)">&#8593; 批量推送</button>
+        <button id="batchCreateBtn">+ 批量创建</button>
+        <button id="batchBtn">&#8644; 批量切换</button>
+        <button id="batchDeleteBtn" style="background:var(--danger)">&#10005; 批量删除</button>
+        <button id="batchSyncBtn" style="background:#e0a030;color:#000">&#8635; 批量同步</button>
+      </div>
+    </div>
+      <div class="section-title">仓库状态 <span class="select-all" id="selectAll">取消全选</span></div>
+      <div class="repo-grid" id="repoGrid"></div>
+    </div>
+    <div class="sync-panel collapsed" id="syncPanel">
+      <div class="sync-panel-header">
+        <span>批量同步分支</span>
+        <button class="msg-toggle-btn" id="syncCloseBtn" title="关闭">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="sync-panel-body">
+        <div class="sync-field">
+          <label>源分支（合并自）</label>
+          <input type="text" id="syncSource" placeholder="例如 master">
+        </div>
+        <div class="sync-arrow-row">↓</div>
+        <div class="sync-field">
+          <label>目标分支（合并到）</label>
+          <input type="text" id="syncTarget" placeholder="例如 feature/branch">
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-muted)">仅当前分支 = 目标分支的仓库会执行</div>
+        <div id="syncPlan" style="flex:1;overflow-y:auto"></div>
+        <button class="sync-confirm-btn" id="syncConfirm" disabled>确认同步</button>
+      </div>
+    </div>
   </div>
-  <div class="section-title">仓库状态</div>
-  <div class="repo-grid" id="repoGrid"></div>
+  <div class="modal-overlay" id="confirmOverlay">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 id="confirmTitle" style="margin:0">确认</h3>
+        <button id="confirmClose" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:0 4px;">✕</button>
+      </div>
+      <p id="confirmMsg"></p>
+      <div class="actions">
+        <button class="btn-cancel" id="confirmCancel">取消</button>
+        <button id="confirmOk">确定</button>
+      </div>
+    </div>
+  </div>
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
       <h3>检测到未提交的改动</h3>
       <p id="modalMsg"></p>
       <div class="actions">
         <button class="btn-cancel" id="modalCancel">取消</button>
-        <button class="btn-stash" id="modalStash">Stash 并切换</button>
+        <button class="btn-stash" id="modalStash">Stash仅切换</button>
+        <button class="btn-stash-pop" id="modalStashPop">Stash并应用</button>
       </div>
     </div>
   </div>
+  <div class="modal-overlay" id="settingsOverlay">
+    <div class="modal wide">
+      <h3>仓库配置</h3>
+      <div class="config-section">
+        <h4>扫描目录</h4>
+        <ul class="config-list" id="baseDirsList"></ul>
+        <div class="config-add">
+          <input type="text" id="newBaseDir" placeholder="输入目录绝对路径...">
+          <button class="btn-browse" id="browseBaseDirBtn">选择</button>
+          <button id="addBaseDirBtn">添加目录</button>
+        </div>
+      </div>
+      <div class="config-section">
+        <h4>单独仓库</h4>
+        <ul class="config-list" id="reposList"></ul>
+        <div class="config-add">
+          <input type="text" id="newRepo" placeholder="输入仓库绝对路径...">
+          <button class="btn-browse" id="browseRepoBtn">选择</button>
+          <button id="addRepoBtn">添加仓库</button>
+        </div>
+      </div>
+      <div class="actions" style="margin-top: 16px;">
+        <button class="btn-cancel" id="settingsClose">关闭</button>
+      </div>
+    </div>
+  </div>
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">正在拉取...</div>
+  </div>
   <div class="toast" id="toast"></div>
+  <div class="global-loading" id="globalLoading"><div class="spinner"></div><div class="loading-text">同步中，请稍候...</div></div>
   <script>
     const API = ''
     let repos = []
     let pendingAction = null
+    let checkedRepos = null
 
-    async function fetchRepos() {
-      const res = await fetch(`${API}/api/repos`)
-      repos = await res.json()
-      render()
+    // --- Theme ---
+    const systemQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    function applyTheme(mode) {
+      localStorage.setItem('theme', mode)
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === mode)
+      })
+      if (mode === 'system') {
+        document.documentElement.dataset.theme = systemQuery.matches ? 'dark' : 'light'
+      } else {
+        document.documentElement.dataset.theme = mode
+      }
+    }
+    systemQuery.addEventListener('change', () => {
+      if (localStorage.getItem('theme') === 'system') {
+        document.documentElement.dataset.theme = systemQuery.matches ? 'dark' : 'light'
+      }
+    })
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', () => applyTheme(btn.dataset.theme))
+    })
+    applyTheme(localStorage.getItem('theme') || 'dark')
+
+    // --- Message Panel ---
+    function showConfirm({ title = '确认', message, okText = '确定', cancelText = '取消', okClass = 'btn-primary' } = {}) {
+      return new Promise(resolve => {
+        document.getElementById('confirmTitle').textContent = title
+        document.getElementById('confirmMsg').textContent = message
+        const okBtn = document.getElementById('confirmOk')
+        okBtn.textContent = okText
+        okBtn.className = okClass
+        document.getElementById('confirmCancel').textContent = cancelText
+        document.getElementById('confirmOverlay').classList.add('active')
+        const cleanup = (result) => {
+          document.getElementById('confirmOverlay').classList.remove('active')
+          okBtn.removeEventListener('click', onOk)
+          document.getElementById('confirmCancel').removeEventListener('click', onCancel)
+          document.getElementById('confirmClose').removeEventListener('click', onClose)
+          resolve(result)
+        }
+        const onOk = () => cleanup(true)
+        const onCancel = () => cleanup(false)
+        const onClose = () => cleanup(null)
+        okBtn.addEventListener('click', onOk)
+        document.getElementById('confirmCancel').addEventListener('click', onCancel)
+        document.getElementById('confirmClose').addEventListener('click', onClose)
+      })
     }
 
-    function render() {
+    function showLoading(text = '正在拉取...') {
+      document.getElementById('loadingText').textContent = text
+      document.getElementById('loadingOverlay').classList.add('active')
+    }
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.remove('active')
+    }
+
+    function addMessage(text, type = 'success') {
+      const list = document.getElementById('msgList')
+      const now = new Date()
+      const time = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      const item = document.createElement('div')
+      item.className = `msg-item ${type}`
+      item.innerHTML = `<div class="msg-time">${time}</div><div>${text}</div>`
+      list.prepend(item)
+      while (list.children.length > 100) list.lastChild.remove()
+    }
+
+    document.getElementById('msgCollapseBtn').addEventListener('click', () => {
+      document.getElementById('msgPanel').classList.add('collapsed')
+      document.getElementById('msgExpandBtn').classList.add('visible')
+    })
+    document.getElementById('msgExpandBtn').addEventListener('click', () => {
+      document.getElementById('msgPanel').classList.remove('collapsed')
+      document.getElementById('msgExpandBtn').classList.remove('visible')
+    })
+
+    async function fetchRepos(isPolling) {
+      const res = await fetch(`${API}/api/repos`)
+      const newRepos = await res.json()
+      if (isPolling && JSON.stringify(newRepos) === JSON.stringify(repos)) return
+      repos = newRepos
+      render(isPolling)
+    }
+
+    function render(isPolling) {
       const grid = document.getElementById('repoGrid')
+      if (!checkedRepos) checkedRepos = new Set(repos.map(r => r.name))
+
+      if (isPolling) {
+        repos.forEach(repo => {
+          const card = grid.querySelector(`.repo-card[data-name="${repo.name}"]`)
+          if (!card) return
+          const branchEl = card.querySelector('.header .branch')
+          if (branchEl) branchEl.textContent = repo.currentBranch
+          const header = card.querySelector('.header')
+          const badge = header.querySelector('.dirty-badge')
+          if (repo.dirty && !badge) {
+            branchEl.insertAdjacentHTML('afterend', '<span class="dirty-badge">未提交</span>')
+          } else if (!repo.dirty && badge) {
+            badge.remove()
+          }
+        })
+        return
+      }
+
       grid.innerHTML = repos.map(repo => `
-        <div class="repo-card" data-name="${repo.name}" onclick="toggleCard(this, '${repo.name}')">
+        <div class="repo-card expanded${checkedRepos.has(repo.name) ? ' checked' : ''}" data-name="${repo.name}">
           <div class="header">
+            <input type="checkbox" class="card-check" value="${repo.name}"${checkedRepos.has(repo.name) ? ' checked' : ''}>
+            <span class="branch">${repo.currentBranch}</span>
+            ${repo.dirty ? '<span class="dirty-badge">未提交</span>' : ''}
             <span class="name">${repo.name}</span>
-            <span>
-              <span class="branch">${repo.currentBranch}</span>
-              ${repo.dirty ? '<span class="dirty-badge">未提交</span>' : ''}
-            </span>
           </div>
+          <div class="branch-list"><div class="loading">加载中...</div></div>
         </div>
       `).join('')
 
-      const checks = document.getElementById('repoChecks')
-      checks.innerHTML = repos.map(repo => `
-        <label><input type="checkbox" value="${repo.name}" checked> ${repo.name}</label>
-      `).join('')
+      repos.forEach(repo => loadBranches(repo.name))
     }
 
-    async function toggleCard(el, name) {
-      if (el.classList.contains('expanded')) {
-        el.classList.remove('expanded')
-        const list = el.querySelector('.branch-list')
-        if (list) list.remove()
-        return
+    async function loadBranches(name) {
+      const card = document.querySelector(`.repo-card[data-name="${name}"]`)
+      if (!card) return
+      const listDiv = card.querySelector('.branch-list')
+      try {
+        const res = await fetch(`${API}/api/repos/${name}/branches`)
+        const branches = await res.json()
+        if (!Array.isArray(branches) || !branches.length) { listDiv.remove(); return }
+        const repo = repos.find(r => r.name === name)
+        listDiv.innerHTML = `<input class="search" placeholder="搜索分支..." oninput="filterBranches(this)">` +
+          branches.map(b => `<div class="branch-item${b === repo.currentBranch ? ' current' : ''}" onclick="switchBranch('${name}', '${b}')"><span>${b}</span><button class="copy-btn" onclick="event.stopPropagation(); copyBranch('${b}', this)" title="复制分支名"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>`).join('')
+      } catch {
+        listDiv.remove()
       }
-      document.querySelectorAll('.repo-card').forEach(c => {
-        c.classList.remove('expanded')
-        const l = c.querySelector('.branch-list')
-        if (l) l.remove()
-      })
-      el.classList.add('expanded')
-      const res = await fetch(`${API}/api/repos/${name}/branches`)
-      const branches = await res.json()
-      const repo = repos.find(r => r.name === name)
-      const div = document.createElement('div')
-      div.className = 'branch-list'
-      div.innerHTML = `<input class="search" placeholder="搜索分支..." oninput="filterBranches(this)">` +
-        branches.map(b => `<div class="branch-item${b === repo.currentBranch ? ' current' : ''}" onclick="event.stopPropagation(); switchBranch('${name}', '${b}')">${b}</div>`).join('')
-      el.appendChild(div)
+    }
+
+    function copyBranch(branch, btn) {
+      navigator.clipboard.writeText(branch)
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+      setTimeout(() => {
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+      }, 1500)
     }
 
     function filterBranches(input) {
@@ -279,12 +883,15 @@
         const data = await res.json()
         if (data.success) {
           showToast(`${repoName} 已切换到 ${branch}`, 'success')
+          addMessage(`${repoName} 切换到 ${branch}`, 'success')
           await fetchRepos()
         } else {
           showToast(`${repoName}: ${data.error}`, 'error')
+          addMessage(`${repoName} 切换失败: ${data.error}`, 'error')
         }
       } catch (e) {
         showToast(`错误: ${e.message}`, 'error')
+        addMessage(`${repoName} 切换异常: ${e.message}`, 'error')
       }
     }
 
@@ -296,10 +903,22 @@
       return (await res.json()).success
     }
 
+    async function doStashPop(repoName) {
+      const res = await fetch(`${API}/api/repos/${repoName}/stash-pop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const data = await res.json()
+      if (!data.success) {
+        showToast(`${repoName}: stash pop 失败 - ${data.error}`, 'error')
+      }
+      return data.success
+    }
+
     document.getElementById('batchBtn').addEventListener('click', async () => {
       const branch = document.getElementById('batchBranch').value.trim()
       if (!branch) { showToast('请输入分支名', 'error'); return }
-      const checked = [...document.querySelectorAll('#repoChecks input:checked')].map(i => i.value)
+      const checked = [...document.querySelectorAll('.card-check:checked')].map(i => i.value)
       if (!checked.length) { showToast('请选择仓库', 'error'); return }
       const dirtyRepos = repos.filter(r => checked.includes(r.name) && r.dirty)
       if (dirtyRepos.length) {
@@ -309,6 +928,162 @@
         return
       }
       await doBatchCheckout(branch, checked)
+    })
+
+    document.getElementById('batchCreateBtn').addEventListener('click', async () => {
+      const branch = document.getElementById('batchBranch').value.trim()
+      if (!branch) { showToast('请输入分支名', 'error'); return }
+      const checked = [...document.querySelectorAll('.card-check:checked')].map(i => i.value)
+      if (!checked.length) { showToast('请选择仓库', 'error'); return }
+      const pullFirst = await showConfirm({
+        title: '批量创建分支',
+        message: `即将为选中的 ${checked.length} 个仓库从当前分支创建新分支 "${branch}"。是否先拉取最新代码？`,
+        okText: '先 Pull 再创建',
+        cancelText: '直接创建',
+      })
+      if (pullFirst === null) return
+      if (pullFirst) showLoading('正在拉取并创建分支...')
+      try {
+        const res = await fetch(`${API}/api/batch-create-branch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branch, repoNames: checked, pullFirst })
+        })
+        const results = await res.json()
+        const ok = results.filter(r => r.success).length
+        const fail = results.filter(r => !r.success)
+        if (fail.length) {
+          showToast(`创建: 成功 ${ok}，失败 ${fail.length} (${fail.map(f => f.name).join(', ')})`, 'error')
+          addMessage(`批量创建 ${branch}: 成功 ${ok}，失败 ${fail.length} (${fail.map(f => f.name + ': ' + f.error).join(', ')})`, 'error')
+        } else {
+          showToast(`全部 ${ok} 个仓库已创建分支 ${branch}`, 'success')
+          addMessage(`批量创建 ${branch}: 全部 ${ok} 个成功`, 'success')
+        }
+        await fetchRepos()
+      } catch (e) {
+        showToast(`创建失败: ${e.message}`, 'error')
+        addMessage(`批量创建异常: ${e.message}`, 'error')
+      } finally {
+        if (pullFirst) hideLoading()
+      }
+    })
+
+    document.getElementById('batchDeleteBtn').addEventListener('click', async () => {
+      const branch = document.getElementById('batchBranch').value.trim()
+      if (!branch) { showToast('请输入分支名', 'error'); return }
+      const checked = [...document.querySelectorAll('.card-check:checked')].map(i => i.value)
+      if (!checked.length) { showToast('请选择仓库', 'error'); return }
+      const confirmed = await showConfirm({
+        title: '批量删除分支',
+        message: `确认删除选中 ${checked.length} 个仓库的分支 "${branch}"？此操作不可撤销。`,
+        okText: '确认删除',
+        okClass: 'btn-danger',
+      })
+      if (!confirmed) return
+      try {
+        const res = await fetch(`${API}/api/batch-delete-branch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branch, repoNames: checked })
+        })
+        const results = await res.json()
+        const ok = results.filter(r => r.success).length
+        const fail = results.filter(r => !r.success)
+        if (fail.length) {
+          showToast(`删除: 成功 ${ok}，失败 ${fail.length} (${fail.map(f => f.name).join(', ')})`, 'error')
+          addMessage(`批量删除 ${branch}: 成功 ${ok}，失败 ${fail.length} (${fail.map(f => f.name + ': ' + f.error).join(', ')})`, 'error')
+        } else {
+          showToast(`全部 ${ok} 个仓库已删除分支 ${branch}`, 'success')
+          addMessage(`批量删除 ${branch}: 全部 ${ok} 个成功`, 'success')
+        }
+        await fetchRepos()
+      } catch (e) {
+        showToast(`删除失败: ${e.message}`, 'error')
+        addMessage(`批量删除异常: ${e.message}`, 'error')
+      }
+    })
+
+    let syncCheckedRepos = []
+    function renderSyncPlan() {
+      const source = document.getElementById('syncSource').value.trim()
+      const target = document.getElementById('syncTarget').value.trim()
+      const planDiv = document.getElementById('syncPlan')
+      const confirmBtn = document.getElementById('syncConfirm')
+      if (!source || !target) {
+        planDiv.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem;padding:8px">请填写源分支和目标分支</div>'
+        confirmBtn.disabled = true
+        return
+      }
+      if (source === target) {
+        planDiv.innerHTML = '<div style="color:var(--danger);font-size:0.82rem;padding:8px">源分支和目标分支不能相同</div>'
+        confirmBtn.disabled = true
+        return
+      }
+      const items = syncCheckedRepos.map(name => {
+        const repo = repos.find(r => r.name === name)
+        if (!repo) return null
+        if (repo.currentBranch !== target) return null
+        return { name, match: true, dirty: repo.dirty }
+      }).filter(Boolean)
+      confirmBtn.disabled = !items.length
+      if (!items.length) {
+        planDiv.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem;padding:8px">没有仓库的当前分支匹配目标分支</div>'
+        return
+      }
+      planDiv.innerHTML = items.map(i => {
+        return `<div class="sync-item"><span>${i.name}: <strong>${source}</strong><span class="sync-arrow">→</span><strong>${target}</strong>${i.dirty ? ' <span class="sync-dirty">(将自动 stash)</span>' : ''}</span></div>`
+      }).join('')
+    }
+
+    document.getElementById('syncSource').addEventListener('input', renderSyncPlan)
+    document.getElementById('syncTarget').addEventListener('input', renderSyncPlan)
+
+    document.getElementById('batchSyncBtn').addEventListener('click', () => {
+      syncCheckedRepos = [...document.querySelectorAll('.card-check:checked')].map(i => i.value)
+      if (!syncCheckedRepos.length) { showToast('请选择仓库', 'error'); return }
+      const batchVal = document.getElementById('batchBranch').value.trim()
+      document.getElementById('syncSource').value = batchVal
+      document.getElementById('syncTarget').value = ''
+      document.getElementById('syncPanel').classList.remove('collapsed')
+      renderSyncPlan()
+    })
+
+    document.getElementById('syncConfirm').addEventListener('click', async () => {
+      const source = document.getElementById('syncSource').value.trim()
+      const target = document.getElementById('syncTarget').value.trim()
+      const matched = syncCheckedRepos.filter(name => {
+        const repo = repos.find(r => r.name === name)
+        return repo && repo.currentBranch === target
+      })
+      if (!matched.length) return
+      document.getElementById('globalLoading').classList.add('show')
+      try {
+        const res = await fetch(`${API}/api/batch-sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceBranch: source, targetBranch: target, repoNames: matched })
+        })
+        const results = await res.json()
+        const ok = results.filter(r => r.success).length
+        const fail = results.filter(r => !r.success && !r.skipped)
+        const skipped = results.filter(r => r.skipped)
+        let msg = `同步 ${source} → ${target}: 成功 ${ok}`
+        if (skipped.length) msg += `，跳过 ${skipped.length}`
+        if (fail.length) msg += `，失败 ${fail.length} (${fail.map(f => f.name + ': ' + f.error).join(', ')})`
+        showToast(msg, fail.length ? 'error' : 'success')
+        addMessage(msg, fail.length ? 'error' : 'success')
+        document.getElementById('syncPanel').classList.add('collapsed')
+        await fetchRepos()
+      } catch (e) {
+        showToast(`同步失败: ${e.message}`, 'error')
+        addMessage(`批量同步异常: ${e.message}`, 'error')
+      } finally {
+        document.getElementById('globalLoading').classList.remove('show')
+      }
+    })
+
+    document.getElementById('syncCloseBtn').addEventListener('click', () => {
+      document.getElementById('syncPanel').classList.add('collapsed')
     })
 
     async function doBatchCheckout(branch, repoNames) {
@@ -322,11 +1097,69 @@
       const fail = results.filter(r => !r.success)
       if (fail.length) {
         showToast(`成功 ${ok} 个，失败 ${fail.length} 个: ${fail.map(f => f.name + '(' + f.error + ')').join(', ')}`, 'error')
+        addMessage(`批量切换 ${branch}: 成功 ${ok}，失败 ${fail.length} (${fail.map(f => f.name).join(', ')})`, 'error')
       } else {
         showToast(`全部 ${ok} 个仓库已切换到 ${branch}`, 'success')
+        addMessage(`批量切换 ${branch}: 全部 ${ok} 个成功`, 'success')
       }
       await fetchRepos()
     }
+
+    document.getElementById('batchPullBtn').addEventListener('click', async () => {
+      const checked = [...document.querySelectorAll('.card-check:checked')].map(i => i.value)
+      if (!checked.length) { showToast('请选择仓库', 'error'); return }
+      showLoading('正在批量拉取...')
+      try {
+        const res = await fetch(`${API}/api/batch-pull`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repoNames: checked })
+        })
+        const results = await res.json()
+        const ok = results.filter(r => r.success).length
+        const fail = results.filter(r => !r.success)
+        if (fail.length) {
+          showToast(`拉取: 成功 ${ok} 个，冲突 ${fail.length} 个 (${fail.map(f => f.name).join(', ')})`, 'error')
+          addMessage(`批量拉取: 成功 ${ok}，冲突 ${fail.length} (${fail.map(f => f.name).join(', ')})`, 'error')
+        } else {
+          showToast(`全部 ${ok} 个仓库拉取成功`, 'success')
+          addMessage(`批量拉取: 全部 ${ok} 个成功`, 'success')
+        }
+        await fetchRepos()
+      } catch (e) {
+        showToast(`拉取失败: ${e.message}`, 'error')
+        addMessage(`批量拉取异常: ${e.message}`, 'error')
+      } finally {
+        hideLoading()
+      }
+    })
+
+    document.getElementById('batchPushBtn').addEventListener('click', async () => {
+      const checked = [...document.querySelectorAll('.card-check:checked')].map(i => i.value)
+      if (!checked.length) { showToast('请选择仓库', 'error'); return }
+      showToast('正在推送...', 'success')
+      try {
+        const res = await fetch(`${API}/api/batch-push`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repoNames: checked })
+        })
+        const results = await res.json()
+        const ok = results.filter(r => r.success).length
+        const fail = results.filter(r => !r.success)
+        if (fail.length) {
+          showToast(`推送: 成功 ${ok}，失败 ${fail.length} (${fail.map(f => f.name).join(', ')})`, 'error')
+          addMessage(`批量推送: 成功 ${ok}，失败 ${fail.length} (${fail.map(f => f.name + ': ' + f.error).join(', ')})`, 'error')
+        } else {
+          showToast(`全部 ${ok} 个仓库推送成功`, 'success')
+          addMessage(`批量推送: 全部 ${ok} 个成功`, 'success')
+        }
+        await fetchRepos()
+      } catch (e) {
+        showToast(`推送失败: ${e.message}`, 'error')
+        addMessage(`批量推送异常: ${e.message}`, 'error')
+      }
+    })
 
     document.getElementById('modalCancel').addEventListener('click', () => {
       document.getElementById('modalOverlay').classList.remove('active')
@@ -348,11 +1181,71 @@
       pendingAction = null
     })
 
+    document.getElementById('modalStashPop').addEventListener('click', async () => {
+      document.getElementById('modalOverlay').classList.remove('active')
+      if (!pendingAction) return
+      if (pendingAction.type === 'single') {
+        const stashed = await doStash(pendingAction.repoName)
+        if (!stashed) { showToast(`${pendingAction.repoName}: stash 失败`, 'error'); addMessage(`${pendingAction.repoName} stash 失败`, 'error'); pendingAction = null; return }
+        const res = await fetch(`${API}/api/repos/${pendingAction.repoName}/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branch: pendingAction.branch })
+        })
+        const data = await res.json()
+        if (!data.success) { showToast(`${pendingAction.repoName}: checkout 失败 - ${data.error}`, 'error'); addMessage(`${pendingAction.repoName} 切换失败: ${data.error}`, 'error'); pendingAction = null; return }
+        await doStashPop(pendingAction.repoName)
+        showToast(`${pendingAction.repoName} 已切换到 ${pendingAction.branch} 并恢复改动`, 'success')
+        addMessage(`${pendingAction.repoName} 切换到 ${pendingAction.branch} 并恢复改动`, 'success')
+        await fetchRepos()
+      } else if (pendingAction.type === 'batch') {
+        for (const repo of pendingAction.dirtyRepos) {
+          await doStash(repo.name)
+        }
+        const res = await fetch(`${API}/api/batch-checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branch: pendingAction.branch, repoNames: pendingAction.repoNames })
+        })
+        await res.json()
+        for (const repo of pendingAction.dirtyRepos) {
+          await doStashPop(repo.name)
+        }
+        showToast(`批量切换完成并恢复改动`, 'success')
+        addMessage(`批量切换 ${pendingAction.branch} 完成并恢复改动`, 'success')
+        await fetchRepos()
+      }
+      pendingAction = null
+    })
+
+    document.getElementById('repoGrid').addEventListener('change', (e) => {
+      if (!e.target.classList.contains('card-check')) return
+      const card = e.target.closest('.repo-card')
+      if (e.target.checked) {
+        checkedRepos.add(e.target.value)
+        card.classList.add('checked')
+      } else {
+        checkedRepos.delete(e.target.value)
+        card.classList.remove('checked')
+      }
+      updateSelectAllText()
+    })
+
+    function updateSelectAllText() {
+      const allChecked = document.querySelectorAll('.card-check').length === document.querySelectorAll('.card-check:checked').length
+      document.getElementById('selectAll').textContent = allChecked ? '取消全选' : '全选'
+    }
+
     document.getElementById('selectAll').addEventListener('click', () => {
-      const checks = document.querySelectorAll('#repoChecks input')
+      const checks = document.querySelectorAll('.card-check')
       const allChecked = [...checks].every(c => c.checked)
-      checks.forEach(c => c.checked = !allChecked)
-      document.getElementById('selectAll').textContent = allChecked ? '全选' : '取消全选'
+      checks.forEach(c => {
+        c.checked = !allChecked
+        const card = c.closest('.repo-card')
+        if (c.checked) { checkedRepos.add(c.value); card.classList.add('checked') }
+        else { checkedRepos.delete(c.value); card.classList.remove('checked') }
+      })
+      updateSelectAllText()
     })
 
     function showToast(msg, type) {
@@ -362,7 +1255,110 @@
       setTimeout(() => t.classList.remove('show'), 3000)
     }
 
+    // --- Settings Panel ---
+    async function loadSettings() {
+      const res = await fetch(`${API}/api/config`)
+      const cfg = await res.json()
+      renderSettings(cfg)
+    }
+
+    function renderSettings(cfg) {
+      const baseDirsList = document.getElementById('baseDirsList')
+      baseDirsList.innerHTML = cfg.baseDirs.map(p => `<li><span>${p}</span><button onclick="removeBaseDir('${p}')">删除</button></li>`).join('')
+      const reposList = document.getElementById('reposList')
+      reposList.innerHTML = cfg.repos.map(p => `<li><span>${p}</span><button onclick="removeRepo('${p}')">删除</button></li>`).join('')
+    }
+
+    async function removeBaseDir(path) {
+      const res = await fetch(`${API}/api/config/base-dirs`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
+      })
+      const data = await res.json()
+      if (data.success) { await loadSettings(); await fetchRepos(); addMessage(`移除扫描目录: ${path}`, 'success') }
+      else showToast(data.error, 'error')
+    }
+
+    async function removeRepo(path) {
+      const res = await fetch(`${API}/api/config/repos`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
+      })
+      const data = await res.json()
+      if (data.success) { await loadSettings(); await fetchRepos(); addMessage(`移除仓库: ${path}`, 'success') }
+      else showToast(data.error, 'error')
+    }
+
+    document.getElementById('addBaseDirBtn').addEventListener('click', async () => {
+      const input = document.getElementById('newBaseDir')
+      const path = input.value.trim()
+      if (!path) return
+      const res = await fetch(`${API}/api/config/base-dirs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
+      })
+      const data = await res.json()
+      if (data.success) { input.value = ''; await loadSettings(); await fetchRepos(); addMessage(`添加扫描目录: ${path}`, 'success') }
+      else showToast(data.error, 'error')
+    })
+
+    document.getElementById('addRepoBtn').addEventListener('click', async () => {
+      const input = document.getElementById('newRepo')
+      const path = input.value.trim()
+      if (!path) return
+      const res = await fetch(`${API}/api/config/repos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
+      })
+      const data = await res.json()
+      if (data.success) { input.value = ''; await loadSettings(); await fetchRepos(); addMessage(`添加仓库: ${path}`, 'success') }
+      else showToast(data.error, 'error')
+    })
+
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+      loadSettings()
+      document.getElementById('settingsOverlay').classList.add('active')
+    })
+    document.getElementById('settingsClose').addEventListener('click', () => {
+      document.getElementById('settingsOverlay').classList.remove('active')
+    })
+
+    async function pickDirectory(inputId) {
+      const res = await fetch(`${API}/api/pick-directory`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success && data.path) {
+        document.getElementById(inputId).value = data.path
+      }
+    }
+    document.getElementById('browseBaseDirBtn').addEventListener('click', () => pickDirectory('newBaseDir'))
+    document.getElementById('browseRepoBtn').addEventListener('click', () => pickDirectory('newRepo'))
+
     fetchRepos()
+
+    let pollTimer = setInterval(() => fetchRepos(true), 5000)
+    const pollToggle = document.getElementById('pollToggle')
+    const pollInput = document.getElementById('pollInterval')
+
+    pollToggle.addEventListener('click', () => {
+      pollToggle.classList.toggle('active')
+      if (pollToggle.classList.contains('active')) {
+        const sec = Math.max(1, parseInt(pollInput.value) || 5)
+        pollTimer = setInterval(() => fetchRepos(true), sec * 1000)
+      } else {
+        clearInterval(pollTimer)
+      }
+    })
+
+    pollInput.addEventListener('change', () => {
+      if (!pollToggle.classList.contains('active')) return
+      clearInterval(pollTimer)
+      const sec = Math.max(1, parseInt(pollInput.value) || 5)
+      pollTimer = setInterval(() => fetchRepos(true), sec * 1000)
+    })
   </script>
 </body>
 </html>
