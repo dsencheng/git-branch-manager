@@ -2,6 +2,8 @@
 
 一个本地 Web 面板，用于查看和管理多个 Git 仓库的分支。
 
+![screenshot](screenshot-dark.png)
+
 ## 功能
 
 - 仓库状态一览（当前分支、是否有未提交改动）
