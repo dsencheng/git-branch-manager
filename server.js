@@ -304,6 +304,17 @@ app.post('/api/config/base-dirs', async (c) => {
   } catch {
     return c.json({ error: '目录不存在' }, 400)
   }
+  const entries = await readdir(dirPath, { withFileTypes: true })
+  let hasRepo = false
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    try {
+      await stat(join(dirPath, entry.name, '.git'))
+      hasRepo = true
+      break
+    } catch {}
+  }
+  if (!hasRepo) return c.json({ error: '该目录下未检测到 git 仓库' }, 400)
   if (config.baseDirs.includes(dirPath)) return c.json({ error: '目录已存在' }, 400)
   config.baseDirs.push(dirPath)
   await saveConfig()

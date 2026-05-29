@@ -796,6 +796,7 @@
     function render(isPolling) {
       const grid = document.getElementById('repoGrid')
       if (!checkedRepos) checkedRepos = new Set(repos.map(r => r.name))
+      document.getElementById('selectAll').style.display = repos.length ? '' : 'none'
 
       if (isPolling) {
         repos.forEach(repo => {
