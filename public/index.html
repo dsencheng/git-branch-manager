@@ -182,16 +182,16 @@
       background: color-mix(in srgb, var(--accent) 8%, var(--surface));
       border-color: var(--accent);
     }
-    .repo-card .card-check { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; }
+    .repo-card .card-check { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; align-self: center; }
     .repo-card:hover {
       border-color: var(--accent);
       transform: translateY(-2px);
       box-shadow: var(--card-shadow);
     }
     .repo-card .loading { font-size: 0.8rem; color: var(--text-muted); padding: 8px 0; }
-    .repo-card .header { display: flex; align-items: center; gap: 8px; }
+    .repo-card .header { display: flex; align-items: baseline; gap: 8px; }
     .repo-card .name { font-size: 0.8rem; color: var(--text-muted); margin-left: auto; }
-    .repo-card .branch { font-size: 0.95rem; color: var(--branch); font-family: monospace; font-weight: 700; }
+    .repo-card .branch { font-size: 0.95rem; color: var(--branch); font-family: monospace; font-weight: 700; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: break-word; word-break: break-word; min-width: 0; }
     .repo-card .dirty-badge {
       font-size: 0.7rem;
       background: var(--danger);
@@ -201,6 +201,8 @@
       font-weight: 600;
       margin-left: 8px;
       animation: pulse 2s ease-in-out infinite;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
     @keyframes pulse {
       0%, 100% { opacity: 1; }
